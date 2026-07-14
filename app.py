@@ -1,7 +1,1 @@
-
-"app.py created"
-print("=" * 50)
-print("        APEX ALPHA")
-print("Stock Strategy Scanner")
-print("Developed by Apex Financials Inc.")
-print("=" * 50)
+from data.market_data import download_stock
