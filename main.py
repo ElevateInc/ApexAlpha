@@ -22,7 +22,7 @@ for stock in stocks:
     close_prices = data["Close"]
 
     # yfinance may return Close as a one-column DataFrame.
-    # This extracts that column as a Series of prices.
+    # Convert it into a Series containing only the price values.
     if close_prices.ndim == 2:
         close_prices = close_prices.iloc[:, 0]
 
@@ -31,8 +31,17 @@ for stock in stocks:
     lowest_close = close_prices.min()
     average_close = close_prices.mean()
 
+    if latest_close > average_close:
+        status = "BULLISH"
+    elif latest_close < average_close:
+        status = "BEARISH"
+    else:
+        status = "NEUTRAL"
+
     print(f"\n{stock} Summary")
+    print("-" * 35)
     print(f"Latest Close : ${latest_close:.2f}")
     print(f"Highest Close: ${highest_close:.2f}")
     print(f"Lowest Close : ${lowest_close:.2f}")
     print(f"Average Close: ${average_close:.2f}")
+    print(f"Market Status: {status}")
