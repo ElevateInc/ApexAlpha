@@ -5,15 +5,13 @@ from typing import Any
 @dataclass
 class RuleResult:
     """
-    Represents the outcome of one strategy rule.
-
-    Example:
-        Price above 20-day SMA = passed
-        Latest close above previous close = failed
+    Represents the outcome of one ApexAlpha strategy rule.
     """
 
     name: str
     passed: bool
-    actual_value: Any
-    expected_value: str
     explanation: str
+
+    category: str = "confirmation"
+    actual_value: Any = None
+    expected_value: str = ""

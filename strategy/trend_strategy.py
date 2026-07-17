@@ -1,11 +1,16 @@
-def analyse_trend(latest_close: float, sma_20: float) -> str:
-    """Simple trend strategy based on the 20-day SMA."""
+def analyse_trend(
+    current_price: float,
+    moving_average: float,
+) -> str:
+    """
+    Determines the trend using the current price
+    and the moving average.
+    """
 
-    if latest_close > sma_20:
+    if current_price > moving_average:
         return "BUY"
 
-    elif latest_close < sma_20:
+    elif current_price < moving_average:
         return "SELL"
 
-    else:
-        return "HOLD"
+    return "HOLD"

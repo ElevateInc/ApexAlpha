@@ -1,206 +1,171 @@
 from dataclasses import dataclass
-from typing import List
 
-from feedback.explanations import identify_missing_confirmations
 from feedback.rule_result import RuleResult
 
 
 @dataclass
 class StrategyFeedback:
     """
-    Contains the complete Apex feedback for one asset.
+    Summarises the result of a group of strategy rules.
     """
 
     direction: str
     verdict: str
     match_percentage: float
-    passed_rules: int
-    total_rules: int
-    rule_results: List[RuleResult]
-    missing_confirmations: List[str]
-    risk_message: str
+    passed_rules: list[RuleResult]
+    failed_rules: list[RuleResult]
+    missing_confirmations: list[RuleResult]
+    risk_guidance: str
+
+    def display(self) -> None:
+        """
+        Prints a readable strategy-feedback report.
+        """
+
+        print(f"Direction:            {self.direction}")
+        print(f"Verdict:              {self.verdict}")
+        print(
+            f"Strategy match:       "
+            f"{self.match_percentage:.1f}%"
+        )
+
+        print("\nPassed Rules")
+        print("-" * 50)
+
+        if self.passed_rules:
+            for rule in self.passed_rules:
+                print(f"✓ {rule.name}")
+                print(f"  {rule.explanation}")
+        else:
+            print("No strategy rules passed.")
+
+        print("\nFailed Rules")
+        print("-" * 50)
+
+        if self.failed_rules:
+            for rule in self.failed_rules:
+                print(f"✗ {rule.name}")
+                print(f"  {rule.explanation}")
+        else:
+            print("No strategy rules failed.")
+
+        print("\nMissing Confirmations")
+        print("-" * 50)
+
+        if self.missing_confirmations:
+            for rule in self.missing_confirmations:
+                print(f"- {rule.name}")
+        else:
+            print("No confirmations are missing.")
+
+        print("\nRisk Guidance")
+        print("-" * 50)
+        print(self.risk_guidance)
 
 
-def determine_direction(
-    passed_rules: int,
-    total_rules: int,
-) -> str:
-    """
-    Determines the broad market direction from the number of rules passed.
-    """
-
-    if total_rules == 0:
-        return "NEUTRAL"
-
-    match_percentage = (passed_rules / total_rules) * 100
-
-    if match_percentage >= 75:
-        return "BULLISH"
-
-    if match_percentage <= 25:
-        return "BEARISH"
-
-    return "NEUTRAL"
-
-
-def determine_verdict(match_percentage: float) -> str:
-    """
-    Converts the strategy match percentage into a readable verdict.
-    """
-
-    if match_percentage >= 80:
-        return "STRONG MATCH"
-
-    if match_percentage >= 60:
-        return "PARTIAL MATCH"
-
-    if match_percentage >= 40:
-        return "WEAK MATCH"
-
-    return "NO CONFIRMATION"
-
-
-def build_risk_message(
+def generate_strategy_feedback(
+    rules: list[RuleResult],
     direction: str,
-    match_percentage: float,
-) -> str:
-    """
-    Creates a responsible risk message.
-
-    Apex supports decision-making but does not guarantee trade outcomes.
-    """
-
-    if direction == "BULLISH" and match_percentage >= 80:
-        return (
-            "The strategy shows strong bullish confirmation. However, "
-            "historical or technical confirmation does not guarantee that "
-            "the trade will be profitable."
-        )
-
-    if direction == "BULLISH":
-        return (
-            "The strategy has a bullish bias, but some confirmation rules "
-            "are missing. Consider waiting for stronger confirmation."
-        )
-
-    if direction == "BEARISH":
-        return (
-            "The strategy currently shows weak or bearish conditions. "
-            "A bullish entry may carry increased risk."
-        )
-
-    return (
-        "The strategy does not currently show a clear directional advantage. "
-        "Consider waiting until more rules agree."
-    )
-
-
-def analyse_strategy_feedback(
-    rule_results: List[RuleResult],
 ) -> StrategyFeedback:
     """
-    Analyses all supplied rules and produces an overall strategy verdict.
+    Generates a strategy-feedback report from rule results.
     """
 
-    total_rules = len(rule_results)
-
-    if total_rules == 0:
+    if not rules:
         return StrategyFeedback(
-            direction="NEUTRAL",
-            verdict="NO RULES AVAILABLE",
+            direction=direction,
+            verdict="NO RULES",
             match_percentage=0.0,
-            passed_rules=0,
-            total_rules=0,
-            rule_results=[],
+            passed_rules=[],
+            failed_rules=[],
             missing_confirmations=[],
-            risk_message=(
-                "No strategy rules were available, so Apex could not "
-                "evaluate the setup."
+            risk_guidance=(
+                "No strategy rules were provided. "
+                "A trading decision cannot be evaluated."
             ),
         )
 
-    passed_rules = sum(
-        1
-        for rule in rule_results
+    passed_rules = [
+        rule
+        for rule in rules
         if rule.passed
-    )
+    ]
+
+    failed_rules = [
+        rule
+        for rule in rules
+        if not rule.passed
+    ]
+
+    required_rules = [
+        rule
+        for rule in rules
+        if rule.category == "required"
+    ]
+
+    failed_required_rules = [
+        rule
+        for rule in required_rules
+        if not rule.passed
+    ]
+
+    missing_confirmations = [
+        rule
+        for rule in failed_rules
+        if rule.category == "confirmation"
+    ]
 
     match_percentage = (
-        passed_rules / total_rules
+        len(passed_rules) / len(rules)
     ) * 100
 
-    direction = determine_direction(
-        passed_rules=passed_rules,
-        total_rules=total_rules,
-    )
+    if failed_required_rules:
+        verdict = "SETUP NOT VALID"
 
-    verdict = determine_verdict(match_percentage)
+        risk_guidance = (
+            "One or more required strategy rules failed. "
+            "The setup should not be treated as valid."
+        )
 
-    missing_confirmations = identify_missing_confirmations(
-        rule_results
-    )
+    elif match_percentage == 100:
+        verdict = "SETUP ACHIEVED"
 
-    risk_message = build_risk_message(
-        direction=direction,
-        match_percentage=match_percentage,
-    )
+        risk_guidance = (
+            "All required and confirmation rules passed. "
+            "Risk management is still essential before entering a trade."
+        )
+
+    elif match_percentage >= 75:
+        verdict = "STRONG SETUP"
+
+        risk_guidance = (
+            "The strategy has a strong directional bias, "
+            "but some confirmation rules are missing. "
+            "Consider waiting for stronger confirmation."
+        )
+
+    elif match_percentage >= 50:
+        verdict = "FORMING SETUP"
+
+        risk_guidance = (
+            "Some strategy conditions have passed, "
+            "but the setup remains incomplete."
+        )
+
+    else:
+        verdict = "WEAK SETUP"
+
+        risk_guidance = (
+            "Most strategy rules have not passed. "
+            "Avoid forcing a trade."
+        )
 
     return StrategyFeedback(
         direction=direction,
         verdict=verdict,
         match_percentage=match_percentage,
         passed_rules=passed_rules,
-        total_rules=total_rules,
-        rule_results=rule_results,
+        failed_rules=failed_rules,
         missing_confirmations=missing_confirmations,
-        risk_message=risk_message,
+        risk_guidance=risk_guidance,
     )
-
-
-def display_strategy_feedback(
-    symbol: str,
-    feedback: StrategyFeedback,
-) -> None:
-    """
-    Prints the Apex strategy feedback in a readable format.
-    """
-
-    print("\n" + "=" * 50)
-    print(f"APEX STRATEGY FEEDBACK — {symbol}")
-    print("=" * 50)
-
-    print(f"Direction      : {feedback.direction}")
-    print(f"Verdict        : {feedback.verdict}")
-    print(
-        f"Strategy Match : "
-        f"{feedback.match_percentage:.0f}%"
-    )
-    print(
-        f"Rules Passed   : "
-        f"{feedback.passed_rules} of "
-        f"{feedback.total_rules}"
-    )
-
-    print("\nRule Analysis")
-    print("-" * 50)
-
-    for rule in feedback.rule_results:
-        status = "PASS" if rule.passed else "FAIL"
-
-        print(f"[{status}] {rule.name}")
-        print(f"       Actual   : {rule.actual_value}")
-        print(f"       Required : {rule.expected_value}")
-        print(f"       Analysis : {rule.explanation}")
-
-    print("\nMissing Confirmations")
-    print("-" * 50)
-
-    if feedback.missing_confirmations:
-        for missing_rule in feedback.missing_confirmations:
-            print(f"- {missing_rule}")
-    else:
-        print("No confirmations are currently missing.")
-
-    print("\nRisk Guidance")
-    print("-" * 50)
-    print(feedback.risk_message)
