@@ -7,14 +7,25 @@ from feedback.strategy_feedback import (
     analyse_strategy_feedback,
     display_strategy_feedback,
 )
-from indicators.moving_averages import add_simple_moving_average
+from indicators.moving_averages import (
+    add_simple_moving_average,
+)
+from patterns.fvg_detector import (
+    detect_fair_value_gaps,
+    display_latest_fair_value_gap,
+    get_latest_active_fair_value_gap,
+    get_latest_fair_value_gap,
+)
+from patterns.fvg_tracker import (
+    update_all_fvg_statuses,
+)
 from strategy.trend_strategy import analyse_trend
 
 
 def get_single_series(dataframe, column_name):
     """
-    Returns one pandas Series even when a market-data provider
-    returns the selected column as a one-column DataFrame.
+    Returns one pandas Series from normal or MultiIndex
+    market-data columns.
     """
 
     values = dataframe[column_name]
@@ -33,10 +44,7 @@ def create_strategy_rules(
     average_close,
 ):
     """
-    Creates the current Apex Alpha strategy rules.
-
-    These rules can later be replaced or extended by rules created
-    through the interactive strategy builder.
+    Creates the current ApexAlpha strategy rules.
     """
 
     strategy_rules = []
@@ -48,7 +56,9 @@ def create_strategy_rules(
             name="Price above 20-day SMA",
             passed=price_above_sma,
             actual_value=f"${latest_close:.2f}",
-            expected_value=f"Above ${latest_sma_20:.2f}",
+            expected_value=(
+                f"Above ${latest_sma_20:.2f}"
+            ),
             explanation=build_rule_explanation(
                 rule_name="Price above 20-day SMA",
                 passed=price_above_sma,
@@ -66,7 +76,9 @@ def create_strategy_rules(
                 f"${latest_close:.2f} versus "
                 f"${previous_close:.2f}"
             ),
-            expected_value="Latest close above previous close",
+            expected_value=(
+                "Latest close above previous close"
+            ),
             explanation=build_rule_explanation(
                 rule_name="Price increased today",
                 passed=price_increased,
@@ -74,7 +86,9 @@ def create_strategy_rules(
         )
     )
 
-    sma_is_rising = latest_sma_20 > previous_sma_20
+    sma_is_rising = (
+        latest_sma_20 > previous_sma_20
+    )
 
     strategy_rules.append(
         RuleResult(
@@ -84,7 +98,9 @@ def create_strategy_rules(
                 f"${latest_sma_20:.2f} versus "
                 f"${previous_sma_20:.2f}"
             ),
-            expected_value="Latest SMA above previous SMA",
+            expected_value=(
+                "Latest SMA above previous SMA"
+            ),
             explanation=build_rule_explanation(
                 rule_name="20-day SMA is rising",
                 passed=sma_is_rising,
@@ -92,14 +108,18 @@ def create_strategy_rules(
         )
     )
 
-    price_above_average = latest_close > average_close
+    price_above_average = (
+        latest_close > average_close
+    )
 
     strategy_rules.append(
         RuleResult(
             name="Price above period average",
             passed=price_above_average,
             actual_value=f"${latest_close:.2f}",
-            expected_value=f"Above ${average_close:.2f}",
+            expected_value=(
+                f"Above ${average_close:.2f}"
+            ),
             explanation=build_rule_explanation(
                 rule_name="Price above period average",
                 passed=price_above_average,
@@ -112,7 +132,7 @@ def create_strategy_rules(
 
 def analyse_stock(stock):
     """
-    Downloads, analyses, and displays results for one stock.
+    Downloads and analyses one stock.
     """
 
     print(f"\nScanning {stock}...")
@@ -143,15 +163,15 @@ def analyse_stock(stock):
 
     if len(close_prices) < 2:
         print(
-            f"{stock} could not be analysed because there "
-            f"are not enough closing-price records."
+            f"{stock} could not be analysed because "
+            f"there are not enough closing prices."
         )
         return
 
     if len(sma_20_values) < 2:
         print(
-            f"{stock} could not be analysed because there "
-            f"are not enough 20-day SMA records."
+            f"{stock} could not be analysed because "
+            f"there are not enough SMA records."
         )
         return
 
@@ -163,7 +183,9 @@ def analyse_stock(stock):
     average_close = float(close_prices.mean())
 
     latest_sma_20 = float(sma_20_values.iloc[-1])
-    previous_sma_20 = float(sma_20_values.iloc[-2])
+    previous_sma_20 = float(
+        sma_20_values.iloc[-2]
+    )
 
     values_to_validate = [
         latest_close,
@@ -175,10 +197,13 @@ def analyse_stock(stock):
         previous_sma_20,
     ]
 
-    if any(pd.isna(value) for value in values_to_validate):
+    if any(
+        pd.isna(value)
+        for value in values_to_validate
+    ):
         print(
-            f"{stock} could not be analysed because one or "
-            f"more required values are missing."
+            f"{stock} contains missing values and "
+            f"could not be analysed."
         )
         return
 
@@ -189,13 +214,42 @@ def analyse_stock(stock):
 
     print(f"\n{stock} Market Summary")
     print("-" * 45)
-    print(f"Latest Close : ${latest_close:.2f}")
+    print(f"Latest Close  : ${latest_close:.2f}")
     print(f"Previous Close: ${previous_close:.2f}")
-    print(f"Highest Close: ${highest_close:.2f}")
-    print(f"Lowest Close : ${lowest_close:.2f}")
-    print(f"Average Close: ${average_close:.2f}")
-    print(f"20-Day SMA   : ${latest_sma_20:.2f}")
-    print(f"Trend Signal : {trend_decision}")
+    print(f"Highest Close : ${highest_close:.2f}")
+    print(f"Lowest Close  : ${lowest_close:.2f}")
+    print(f"Average Close : ${average_close:.2f}")
+    print(f"20-Day SMA    : ${latest_sma_20:.2f}")
+    print(f"Trend Signal  : {trend_decision}")
+
+    fair_value_gaps = detect_fair_value_gaps(
+        dataframe=data,
+        symbol=stock,
+        minimum_gap_size=0.0,
+    )
+
+    fair_value_gaps = update_all_fvg_statuses(
+        dataframe=data,
+        fair_value_gaps=fair_value_gaps,
+    )
+
+    latest_active_fvg = (
+        get_latest_active_fair_value_gap(
+            fair_value_gaps
+        )
+    )
+
+    if latest_active_fvg is not None:
+        selected_fvg = latest_active_fvg
+    else:
+        selected_fvg = get_latest_fair_value_gap(
+            fair_value_gaps
+        )
+
+    display_latest_fair_value_gap(
+        symbol=stock,
+        fair_value_gap=selected_fvg,
+    )
 
     strategy_rules = create_strategy_rules(
         latest_close=latest_close,
@@ -217,11 +271,11 @@ def analyse_stock(stock):
 
 def main():
     """
-    Main Apex Alpha scanner entry point.
+    Main ApexAlpha scanner entry point.
     """
 
     print("=" * 50)
-    print("APEX ALPHA")
+    print("APEXALPHA")
     print("Investment Intelligence Platform")
     print("=" * 50)
 
@@ -239,8 +293,8 @@ def main():
 
         except Exception as error:
             print(
-                f"\n{stock} could not be analysed because "
-                f"an unexpected error occurred:"
+                f"\n{stock} could not be analysed "
+                f"because an unexpected error occurred:"
             )
             print(error)
 
