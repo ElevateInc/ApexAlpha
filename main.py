@@ -329,6 +329,12 @@ def main() -> None:
     print("APEXALPHA SCAN COMPLETED")
     print("=" * 70)
 
-
+    display_market_chart(
+    dataframe=data,
+    symbol=symbol,
+    fair_value_gaps=fair_value_gaps,
+)
+    
 if __name__ == "__main__":
     main()
+    
