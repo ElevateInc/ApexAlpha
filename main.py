@@ -865,14 +865,19 @@ def analyse_stock(
         strategy_feedback.display()
 
         score_data = calculate_opportunity_score(
-            trend=trend_confirmed,
-            sma20=current_price > current_sma_20,
-            sma50=current_price > current_sma_50,
-            bullish_fvg=bullish_fvg,
-            strong_volume=strong_volume,
-            low_risk=low_risk,
-        )
-
+    trend=trend_confirmed,
+    sma20=current_price > current_sma_20,
+    sma50=current_price > current_sma_50,
+    sma200=current_price > current_sma_200,
+    ema_bullish=current_ema_20 > current_ema_50,
+    golden_cross=market_structure["golden_cross"],
+    bullish_alignment=market_structure["bullish_alignment"],
+    bearish_alignment=market_structure["bearish_alignment"],
+    death_cross=market_structure["death_cross"],
+    bullish_fvg=bullish_fvg,
+    strong_volume=strong_volume,
+    low_risk=low_risk,
+)
         display_opportunity_report(
             symbol=symbol,
             score_data=score_data,

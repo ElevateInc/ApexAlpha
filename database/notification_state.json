@@ -3,5 +3,25 @@
     "alignment": "BULLISH_ALIGNMENT",
     "golden_cross_date": null,
     "death_cross_date": null
+  },
+  "MSFT": {
+    "alignment": "NEUTRAL_OR_TRANSITION",
+    "golden_cross_date": null,
+    "death_cross_date": null
+  },
+  "NVDA": {
+    "alignment": "NEUTRAL_OR_TRANSITION",
+    "golden_cross_date": null,
+    "death_cross_date": null
+  },
+  "GOOGL": {
+    "alignment": "NEUTRAL_OR_TRANSITION",
+    "golden_cross_date": null,
+    "death_cross_date": null
+  },
+  "AMZN": {
+    "alignment": "NEUTRAL_OR_TRANSITION",
+    "golden_cross_date": null,
+    "death_cross_date": null
   }
 }

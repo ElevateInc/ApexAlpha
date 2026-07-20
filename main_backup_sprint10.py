@@ -270,15 +270,14 @@ def analyse_stock(
             print(f"No market data was returned for {symbol}.")
             return
 
-        data = calculate_sma(
-            dataframe=data,
-            period=20,
-        )
+        if not has_sufficient_history(data):
+    print(
+        f"⚠ {symbol}: Insufficient history for SMA200. "
+        f"Only {len(data)} rows available."
+    )
+    return
 
-        data = calculate_sma(
-            dataframe=data,
-            period=50,
-        )
+data = add_moving_averages(data)
 
         close_prices = get_single_series(
             dataframe=data,
