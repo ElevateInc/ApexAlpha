@@ -4,7 +4,7 @@ import pandas as pd
 
 def download_stock_data(
     symbol: str,
-    period: str = "6mo",
+    period: str = "2y",
     interval: str = "1d",
 ) -> pd.DataFrame:
     """
@@ -32,4 +32,4 @@ def download_stock_data(
 
     print(f"{symbol} saved to {file_path}")
 
-    return data
+    return data 
