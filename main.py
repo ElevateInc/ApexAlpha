@@ -26,6 +26,12 @@ from strategy.opportunity_score import (
     calculate_opportunity_score,
     display_opportunity_report,
 )
+from patterns.support_resistance import (
+    detect_support_resistance,
+    nearest_support,
+    nearest_resistance,
+    percent_distance,
+)
 from strategy.signal_filter import should_notify
 from strategy.trend_strategy import analyse_trend
 from strategy.watchlist import get_watchlist
@@ -594,14 +600,27 @@ def analyse_stock(
             dataframe=data,
             column_name="Close",
         )
+
+        high_prices = get_single_series(
+            dataframe=data,
+            column_name="High",
+        )
+
+        low_prices = get_single_series(
+            dataframe=data,
+            column_name="Low",
+        )
+
         sma_20 = get_single_series(
             dataframe=data,
             column_name="SMA20",
         )
+
         sma_50 = get_single_series(
             dataframe=data,
             column_name="SMA50",
         )
+        
         sma_200 = get_single_series(
             dataframe=data,
             column_name="SMA200",
@@ -627,28 +646,33 @@ def analyse_stock(
             )
 
         market_values = pd.DataFrame(
-            {
-                "Close": close_prices,
-                "SMA20": sma_20,
-                "SMA50": sma_50,
-                "SMA200": sma_200,
-                "EMA20": ema_20,
-                "EMA50": ema_50,
-                "Volume": volume,
-            }
-        )
+    {
+        "High": high_prices,
+        "Low": low_prices,
+        "Close": close_prices,
+        "SMA20": sma_20,
+        "SMA50": sma_50,
+        "SMA200": sma_200,
+        "EMA20": ema_20,
+        "EMA50": ema_50,
+        "Volume": volume,
+    }
+)
+        
 
         valid_market_data = market_values.dropna(
-            subset=[
-                "Close",
-                "SMA20",
-                "SMA50",
-                "SMA200",
-                "EMA20",
-                "EMA50",
-            ]
-        )
-
+    subset=[
+        "High",
+        "Low",
+        "Close",
+        "SMA20",
+        "SMA50",
+        "SMA200",
+        "EMA20",
+        "EMA50",
+    ]
+)
+        
         if len(valid_market_data) < 2:
             print(
                 f"Not enough valid market data exists for {symbol}."
@@ -723,6 +747,16 @@ def analyse_stock(
                 "long",
             )
         )
+        # -----------------------------
+        # SUPPORT & RESISTANCE
+        # -----------------------------
+        supports, resistances = detect_support_resistance(valid_market_data)
+
+        closest_support = nearest_support(current_price, supports)
+        closest_resistance = nearest_resistance(current_price, resistances)
+
+        support_distance = percent_distance(current_price, closest_support)
+        resistance_distance = percent_distance(current_price, closest_resistance)
 
         market_structure = classify_moving_average_structure(
             current_price=current_price,
@@ -886,11 +920,53 @@ def analyse_stock(
             risk=risk_label,
         )
 
+        # ----------------------------------------
+        # SUPPORT & RESISTANCE REPORT
+        # ----------------------------------------
+
+        print("\nSUPPORT & RESISTANCE")
+        print("-" * 40)
+
+        if closest_support is not None:
+            print(
+                f"Nearest Support    : {closest_support:.2f} "
+                f"({support_distance:.2f}% away)"
+            )
+        else:
+            print("Nearest Support    : None")
+
+        if closest_resistance is not None:
+            print(
+                f"Nearest Resistance : {closest_resistance:.2f} "
+                f"({resistance_distance:.2f}% away)"
+            )
+        else:
+            print("Nearest Resistance : None")
+
+        print("\nPRICE LOCATION")
+
+        if (
+            resistance_distance is not None
+            and resistance_distance < 2
+        ):
+            print("⚠️ Price is approaching resistance.")
+            print("Wait for a breakout confirmation.")
+
+        elif (
+            support_distance is not None
+            and support_distance < 2
+        ):
+            print("✅ Price is trading near support.")
+            print("Watch for a bullish bounce.")
+
+        else:
+            print("Price is between major support and resistance.")
+
         notification_required = should_notify(
             score=score_data["score"],
             minimum_score=85,
         )
-
+        
         if notification_required:
             print("\n" + "!" * 70)
             print(f"APEXALPHA OPPORTUNITY ALERT: {symbol}")
